@@ -65,7 +65,7 @@ def reverse_order(statevec):
 
 #State of required qubits from the whole statevector of 2n + 1 qubits
 
-def extract_state(full_vec):
+def extract_state_GHZ(full_vec):
 
     n = int(((np.log(len(full_vec))/np.log(2)) - 1)//2)
     rev_sv = reverse_order(full_vec)
@@ -94,6 +94,37 @@ def extract_state(full_vec):
     return output_state
 
 
+
+def extract_state_QFT(full_vec):
+
+    n = int(((np.log(len(full_vec))/np.log(2)))//2)
+    rev_sv = reverse_order(full_vec)
+    total_qubits=2 * n
+    wanted_qubits = range(n, 2 * n)
+    fixed_qubits_map={i: 0 for i in range(0, n)}
+    num_wanted = len(wanted_qubits)
+    output_state = np.zeros(2 ** num_wanted, dtype=complex)
+
+    for i in range(2 ** total_qubits):
+        bin_str = format(i, f'0{total_qubits}b')
+        keep = True
+        for qb, val in fixed_qubits_map.items():
+            if int(bin_str[qb]) != val:
+                keep = False
+                break
+        if keep:
+            # Extract sub-index for wanted qubits
+            sub_idx = ''.join([bin_str[qb] for qb in reversed(wanted_qubits)])
+            output_state[int(sub_idx, 2)] += rev_sv[i]
+
+
+    norm = np.linalg.norm(output_state)
+    if norm != 0:
+        output_state /= norm
+
+    return output_state
+
+
 #If any state has 0 count
 
 def fill_missing(data_dict, n_qubits):
@@ -113,6 +144,12 @@ def measure_all(circs, cs, n):
 
     for circ, c in zip(circs, cs):
         circ.measure(range(n + 1, 2 * n + 1), c)
+
+
+def measure_all_QFT(circs, cs, n):
+
+    for circ, c in zip(circs, cs):
+        circ.measure(range(n, 2 * n), c)
 
 
 #Simulate a circuit on simulator/real backend
@@ -217,6 +254,17 @@ def calc_batch_statefdlty(mltpl_sv, mltpl_sv_):
     statefdlty = []
     for sv, sv_ in zip(mltpl_sv, mltpl_sv_):
         statefdlty.append(state_fidelity(extract_state(sv), extract_state(sv_)))
+    
+    return statefdlty
+
+
+
+def calc_batch_statefdlty_QFT(mltpl_sv, mltpl_sv_):
+
+    n = int(((np.log(len(mltpl_sv[0]))/np.log(2)) - 1)//2)
+    statefdlty = []
+    for sv, sv_ in zip(mltpl_sv, mltpl_sv_):
+        statefdlty.append(state_fidelity(extract_state_QFT(sv), extract_state_QFT(sv_)))
     
     return statefdlty
 
